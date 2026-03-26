@@ -5,6 +5,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const marketplace = searchParams.get("marketplace") || "all"; // us | eu | all
   const days = parseInt(searchParams.get("days") || "30");
+  const fromParam = searchParams.get("from") || ""; // YYYY-MM-DD
+  const toParam = searchParams.get("to") || "";     // YYYY-MM-DD
 
   try {
     const [usRaw, euRaw] = await Promise.all([
@@ -17,13 +19,18 @@ export async function GET(req: NextRequest) {
     const euRows = euRaw.map((r) => ({ ...r, marketplace: "EU" as const }));
     const allRows = [...usRows, ...euRows];
 
-    // Filter to last N days by date string (format: YYYY-MM-DD or similar)
+    // Filter by explicit date range OR last N days
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
     const filtered = allRows.filter((r) => {
       if (!r.date) return false;
+      if (fromParam && toParam) {
+        return r.date >= fromParam && r.date <= toParam;
+      }
+      if (fromParam) return r.date >= fromParam;
+      if (toParam) return r.date <= toParam;
       const d = new Date(r.date);
-      return !isNaN(d.getTime()) ? d >= cutoff : true; // keep if date unparseable
+      return !isNaN(d.getTime()) ? d >= cutoff : true;
     });
 
     // --- Aggregate by date per marketplace ---

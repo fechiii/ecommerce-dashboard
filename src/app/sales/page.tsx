@@ -65,7 +65,9 @@ export default function SalesPage() {
 
   // Filters
   const [marketplace, setMarketplace] = useState<"all" | "us" | "eu">("all");
-  const [days, setDays] = useState<7 | 14 | 30 | 60 | 90>(30);
+  const [days, setDays] = useState<7 | 14 | 30 | 60 | 90 | 0>(30);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [chartType, setChartType] = useState<"sales" | "units">("sales");
 
   // Table
@@ -79,7 +81,18 @@ export default function SalesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/sales?marketplace=${marketplace}&days=${days}`);
+      const params = new URLSearchParams({ marketplace });
+      if (dateFrom && dateTo) {
+        params.set("from", dateFrom);
+        params.set("to", dateTo);
+      } else if (dateFrom) {
+        params.set("from", dateFrom);
+      } else if (dateTo) {
+        params.set("to", dateTo);
+      } else {
+        params.set("days", String(days || 30));
+      }
+      const res = await fetch(`/api/sales?${params.toString()}`);
       if (!res.ok) throw new Error((await res.json()).error || "Error");
       setData(await res.json());
       setPage(1);
@@ -88,7 +101,7 @@ export default function SalesPage() {
     } finally {
       setLoading(false);
     }
-  }, [marketplace, days]);
+  }, [marketplace, days, dateFrom, dateTo]);
 
   useEffect(() => { fetchSales(); }, [fetchSales]);
 
@@ -152,17 +165,46 @@ export default function SalesPage() {
               ))}
             </div>
 
-            {/* Days */}
-            <div className="flex bg-[#161b22] border border-[#30363d] rounded-lg p-1 gap-1">
-              {([7, 14, 30, 60, 90] as const).map((d) => (
+            {/* Days — hidden when custom dates are set */}
+            {!dateFrom && !dateTo && (
+              <div className="flex bg-[#161b22] border border-[#30363d] rounded-lg p-1 gap-1">
+                {([7, 14, 30, 60, 90] as const).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setDays(d)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${days === d ? "bg-[#1f6feb] text-white" : "text-[#8b949e] hover:text-white"}`}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Custom date range */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#8b949e] text-xs">Desde</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="bg-[#161b22] border border-[#30363d] text-white text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#58a6ff] [color-scheme:dark]"
+              />
+              <span className="text-[#8b949e] text-xs">Hasta</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="bg-[#161b22] border border-[#30363d] text-white text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#58a6ff] [color-scheme:dark]"
+              />
+              {(dateFrom || dateTo) && (
                 <button
-                  key={d}
-                  onClick={() => setDays(d)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${days === d ? "bg-[#1f6feb] text-white" : "text-[#8b949e] hover:text-white"}`}
+                  onClick={() => { setDateFrom(""); setDateTo(""); }}
+                  className="text-[#8b949e] hover:text-[#f85149] text-xs px-1.5 py-1 rounded transition-all"
+                  title="Limpiar fechas"
                 >
-                  {d}d
+                  ✕
                 </button>
-              ))}
+              )}
             </div>
 
             <div className="ml-auto flex items-center gap-2">
@@ -212,7 +254,8 @@ export default function SalesPage() {
                 <div>
                   <h3 className="text-white font-semibold text-sm">Tendencia de Ventas</h3>
                   <p className="text-[#8b949e] text-xs mt-0.5">
-                    {marketplace === "all" ? "USA vs EU/UK" : marketplace === "us" ? "USA" : "EU/UK"} — últimos {days} días
+                    {marketplace === "all" ? "USA vs EU/UK" : marketplace === "us" ? "USA" : "EU/UK"} —{" "}
+                    {dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFrom ? `desde ${dateFrom}` : dateTo ? `hasta ${dateTo}` : `últimos ${days} días`}
                   </p>
                 </div>
                 <div className="flex bg-[#0d1117] border border-[#30363d] rounded-md p-0.5 gap-0.5">
