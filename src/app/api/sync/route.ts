@@ -55,10 +55,11 @@ export async function POST() {
       })
     );
 
-    const tabStats = results.map((r, i) => ({
-      tab: tabs[i].name,
-      ...(r.status === "fulfilled" ? r.value : { rows: 0, lastRow: "", error: (r.reason as Error).message }),
-    }));
+    const tabStats = results.map((r, i) =>
+      r.status === "fulfilled"
+        ? r.value
+        : { tab: tabs[i].name, rows: 0, lastRow: "", error: (r.reason as Error).message }
+    );
 
     return NextResponse.json({
       status: "ok",
