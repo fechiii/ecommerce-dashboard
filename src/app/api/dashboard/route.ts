@@ -27,7 +27,7 @@ export async function GET() {
       if (r.date) euByDate[r.date] = (euByDate[r.date] || 0) + r.sales;
     });
 
-    const allDates = [...new Set([...Object.keys(usByDate), ...Object.keys(euByDate)])].sort().slice(-14);
+    const allDates = Array.from(new Set(Object.keys(usByDate).concat(Object.keys(euByDate)))).sort().slice(-14);
     const salesChart = allDates.map((date) => ({
       date,
       us: Math.round(usByDate[date] || 0),
