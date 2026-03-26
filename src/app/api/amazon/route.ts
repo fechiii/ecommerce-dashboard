@@ -1,34 +1,81 @@
+/**
+ * GET  /api/amazon          → Credential status + configured marketplaces
+ * POST /api/amazon          → Create a Sales & Traffic report (async)
+ */
 import { NextRequest, NextResponse } from "next/server";
+import { getLWAToken, MARKETPLACES, createSalesTrafficReport } from "@/lib/amazon";
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const marketplace = searchParams.get("marketplace") || "US";
+// ── GET: status check ─────────────────────────────────────────────────────────
+export async function GET() {
+  const hasClientId     = !!process.env.AMZ_CLIENT_ID;
+  const hasClientSecret = !!process.env.AMZ_CLIENT_SECRET;
+  const hasRefreshToken = !!process.env.AMZ_REFRESH_TOKEN;
+  const configured      = hasClientId && hasClientSecret && hasRefreshToken;
 
-  // Amazon SP-API integration placeholder
-  // Tokens are read from Master Sheet (Access tab)
-  const refreshToken = process.env.AMZ_REFRESH_TOKEN;
-  const clientId = process.env.AMZ_CLIENT_ID;
-  const clientSecret = process.env.AMZ_CLIENT_SECRET;
+  let tokenStatus: "ok" | "error" | "not_configured" = "not_configured";
+  let tokenError: string | null = null;
 
-  if (!refreshToken || !clientId || !clientSecret) {
-    return NextResponse.json({ error: "Amazon credentials not configured" }, { status: 400 });
+  if (configured) {
+    try {
+      await getLWAToken();
+      tokenStatus = "ok";
+    } catch (e: unknown) {
+      tokenStatus = "error";
+      tokenError  = e instanceof Error ? e.message : "Unknown error";
+    }
   }
 
+  return NextResponse.json({
+    configured,
+    credentials: {
+      clientId:     hasClientId     ? "✓ set" : "✗ missing",
+      clientSecret: hasClientSecret ? "✓ set" : "✗ missing",
+      refreshToken: hasRefreshToken ? "✓ set" : "✗ missing",
+    },
+    tokenStatus,
+    tokenError,
+    marketplaces: Object.entries(MARKETPLACES).map(([key, m]) => ({
+      key,
+      id:       m.id,
+      region:   m.region,
+      currency: m.currency,
+    })),
+  });
+}
+
+// ── POST: create report ───────────────────────────────────────────────────────
+export async function POST(req: NextRequest) {
   try {
-    // Step 1: Get LWA access token
-    const tokenRes = await fetch("https://api.amazon.com/auth/o2/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: refreshToken,
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
+    const body = await req.json() as {
+      marketplaceKey?: string;
+      startDate?: string;
+      endDate?: string;
+    };
+
+    const { marketplaceKey = "US", startDate, endDate } = body;
+
+    if (!startDate || !endDate) {
+      return NextResponse.json({ error: "startDate and endDate are required (YYYY-MM-DD)" }, { status: 400 });
+    }
+
+    if (!MARKETPLACES[marketplaceKey]) {
+      return NextResponse.json({ error: `Unknown marketplace: ${marketplaceKey}` }, { status: 400 });
+    }
+
+    const reportId = await createSalesTrafficReport({ marketplaceKey, startDate, endDate });
+
+    return NextResponse.json({
+      reportId,
+      marketplaceKey,
+      startDate,
+      endDate,
+      message: "Report created. Poll /api/amazon/status?reportId=...&marketplace=... to check progress.",
     });
-    const tokenData = await tokenRes.json();
-    return NextResponse.json({ token_obtained: true, expires_in: tokenData.expires_in });
   } catch (err: unknown) {
-    return NextResponse.json({ error: "Failed to fetch Amazon data" }, { status: 500 });
+    console.error("[amazon POST]", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to create report" },
+      { status: 500 },
+    );
   }
 }
