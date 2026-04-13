@@ -6,6 +6,7 @@ import StatCard from "@/components/StatCard";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { DollarSign, Package, ShoppingCart, MessageCircle, RefreshCw, AlertCircle, TrendingUp } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/utils";
+import { useClient } from "@/lib/ClientContext";
 
 interface AccountMetrics {
   accountId: string;
@@ -59,36 +60,43 @@ function dateRange(days: number) {
 }
 
 export default function MeliPage() {
+  const { client } = useClient();
   const [data, setData] = useState<MeliData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(30);
-  const [activeAccount, setActiveAccount] = useState<string>("all");
+
+  // Si hay un cliente seleccionado con cuenta Meli, filtrar; sino "all"
+  const activeAccount = client.meliAccount ?? "all";
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const { from, to } = dateRange(days);
-      const res = await fetch(`/api/meli?account=all&from=${from}&to=${to}`);
+      const accountParam = activeAccount;
+      const res = await fetch(`/api/meli?account=${accountParam}&from=${from}&to=${to}`);
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.error || "Error al cargar datos de Meli");
       }
-      setData(await res.json());
+      const json = await res.json();
+      // Normalizar: si vino un solo account (no "all") lo envolvemos igual
+      if (json.accountId) {
+        setData({ period: { from: json.period?.from ?? "", to: json.period?.to ?? "" }, accounts: [json] });
+      } else {
+        setData(json);
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
       setLoading(false);
     }
-  }, [days]);
+  }, [days, activeAccount]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Filtrar cuentas según selector
-  const visibleAccounts = data?.accounts.filter(
-    (a) => activeAccount === "all" || a.accountId === activeAccount
-  ) ?? [];
+  const visibleAccounts = data?.accounts ?? [];
 
   const hasError = (a: AccountMetrics) => !!a.error;
 
@@ -126,21 +134,11 @@ export default function MeliPage() {
 
           {/* Header controls */}
           <div className="flex items-center justify-between flex-wrap gap-3">
-            {/* Account selector */}
-            <div className="flex bg-[#161b22] border border-[#30363d] rounded-lg p-1 gap-1">
-              {["all", "filhos", "ugo"].map((acc) => (
-                <button
-                  key={acc}
-                  onClick={() => setActiveAccount(acc)}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                    activeAccount === acc
-                      ? "bg-[#FFE600] text-black"
-                      : "text-[#8b949e] hover:text-white"
-                  }`}
-                >
-                  {acc === "all" ? "Todas las cuentas" : ACCOUNT_LABELS[acc] ?? acc.toUpperCase()}
-                </button>
-              ))}
+            <div>
+              <h2 className="text-white font-semibold text-sm">
+                {client.meliAccount ? ACCOUNT_LABELS[client.meliAccount] ?? client.label : "Todas las cuentas"}
+              </h2>
+              <p className="text-[#8b949e] text-xs mt-0.5">Últimos {days} días</p>
             </div>
 
             <div className="flex items-center gap-2">
