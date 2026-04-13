@@ -131,7 +131,9 @@ export interface MeliQuestion {
   status: string;
   date_created: string;
   item_id: string;
-  from: { id: number };
+  item_title?: string;
+  from: { id: number; answered_questions?: number };
+  answer?: { text: string; date_created: string };
 }
 
 export interface MeliVisit {
@@ -198,16 +200,45 @@ export async function getItemDetails(account: MeliAccount, itemIds: string[]): P
   return data.filter((d) => d.code === 200).map((d) => d.body);
 }
 
-export async function getPendingQuestions(account: MeliAccount): Promise<{
+export async function getPendingQuestions(account: MeliAccount, limit = 20): Promise<{
   total: number;
   questions: MeliQuestion[];
 }> {
   const data = await meliGet<{ total: number; questions: MeliQuestion[] }>(
     account,
     `/my/received_questions/search`,
-    { status: "UNANSWERED", limit: "10" },
+    { status: "UNANSWERED", limit: String(limit) },
   );
   return data;
+}
+
+export async function getAllQuestions(account: MeliAccount, limit = 20): Promise<{
+  total: number;
+  questions: MeliQuestion[];
+}> {
+  return meliGet<{ total: number; questions: MeliQuestion[] }>(
+    account,
+    `/my/received_questions/search`,
+    { limit: String(limit), sort_fields: "date_created", sort_types: "DESC" },
+  );
+}
+
+export async function answerQuestion(
+  account: MeliAccount,
+  questionId: number,
+  text: string,
+): Promise<{ id: number; status: string }> {
+  const token = await getMeliToken(account);
+  const res = await fetch(`${MELI_BASE}/answers`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ question_id: questionId, text }),
+  });
+  if (!res.ok) throw new Error(`Answer failed: ${await res.text()}`);
+  return res.json() as Promise<{ id: number; status: string }>;
 }
 
 // ── Métricas consolidadas ─────────────────────────────────────────────────────
@@ -217,17 +248,22 @@ export async function getAccountMetrics(
   dateFrom: string,
   dateTo: string,
 ): Promise<MeliMetrics> {
-  // Traer todas las órdenes paginando
+  // Paginación inteligente: máximo 300 órdenes (6 páginas)
+  // Para vendedores de alto volumen es suficiente para métricas de tendencia
   const allOrders: MeliOrder[] = [];
   let offset = 0;
   const limit = 50;
+  const MAX_ORDERS = 300;
 
   while (true) {
     const page = await getOrders(account, dateFrom, dateTo, limit, offset);
     allOrders.push(...page.results);
-    if (allOrders.length >= page.paging.total || page.results.length < limit) break;
+    if (
+      allOrders.length >= page.paging.total ||
+      page.results.length < limit ||
+      allOrders.length >= MAX_ORDERS
+    ) break;
     offset += limit;
-    if (offset > 500) break; // cap por seguridad
   }
 
   // Consolidar métricas
