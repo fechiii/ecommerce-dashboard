@@ -18,6 +18,7 @@ const nav = [
 
 // Plataformas disponibles por cliente
 const CLIENT_PLATFORMS: Record<string, { amazon: boolean; meli: boolean }> = {
+  unit1:    { amazon: true,  meli: false },
   filhos:   { amazon: false, meli: true  },
   ugo:      { amazon: false, meli: true  },
   holiherb: { amazon: true,  meli: false },

@@ -9,6 +9,14 @@ export interface Client {
 
 export const CLIENTS: Client[] = [
   {
+    id: "unit1",
+    label: "UNIT 1",
+    meliAccount: undefined,
+    meliSellerId: undefined,
+    amazonRegions: ["US", "EU", "UK"],
+    active: true,
+  },
+  {
     id: "filhos",
     label: "FILHOS",
     meliAccount: "filhos",
