@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { DollarSign, Package, ShoppingCart, MessageCircle, RefreshCw, AlertCircle, TrendingUp } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import type { Client } from "@/lib/clients";
+import { useDateRange } from "@/lib/DateContext";
 import Link from "next/link";
 
 interface AccountMetrics {
@@ -22,11 +23,6 @@ interface AccountMetrics {
   error?: string;
 }
 
-function dateRange(days: number) {
-  const to = new Date().toISOString().slice(0, 10);
-  const from = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
-  return { from, to };
-}
 
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
@@ -44,18 +40,17 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 };
 
 export default function MeliDashboard({ client }: { client: Client }) {
+  const { range } = useDateRange();
   const [metrics, setMetrics] = useState<AccountMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [days, setDays] = useState(30);
 
   const fetchData = useCallback(async () => {
     if (!client.meliAccount) return;
     setLoading(true);
     setError(null);
     try {
-      const { from, to } = dateRange(days);
-      const res = await fetch(`/api/meli?account=${client.meliAccount}&from=${from}&to=${to}`);
+      const res = await fetch(`/api/meli?account=${client.meliAccount}&from=${range.from}&to=${range.to}`);
       if (!res.ok) throw new Error((await res.json()).error ?? "Error Meli");
       const json = await res.json();
       // La API devuelve el objeto directo si es una sola cuenta
@@ -65,7 +60,7 @@ export default function MeliDashboard({ client }: { client: Client }) {
     } finally {
       setLoading(false);
     }
-  }, [client.meliAccount, days]);
+  }, [client.meliAccount, range]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -82,30 +77,16 @@ export default function MeliDashboard({ client }: { client: Client }) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-white font-semibold text-sm">{client.label} — Mercado Libre</h2>
-          <p className="text-[#8b949e] text-xs mt-0.5">Seller ID {client.meliSellerId}</p>
+          <p className="text-[#8b949e] text-xs mt-0.5">{range.label} · Seller ID {client.meliSellerId}</p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Period selector */}
-          <div className="flex bg-[#161b22] border border-[#30363d] rounded-lg p-1 gap-1">
-            {[7, 30, 90].map((d) => (
-              <button
-                key={d}
-                onClick={() => setDays(d)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${days === d ? "bg-[#30363d] text-white" : "text-[#8b949e] hover:text-white"}`}
-              >
-                {d}d
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#161b22] border border-[#30363d] text-[#8b949e] hover:text-white text-xs transition-all disabled:opacity-50"
-          >
-            <RefreshCw size={11} className={loading ? "animate-spin" : ""} />
-            Actualizar
-          </button>
-        </div>
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#161b22] border border-[#30363d] text-[#8b949e] hover:text-white text-xs transition-all disabled:opacity-50"
+        >
+          <RefreshCw size={11} className={loading ? "animate-spin" : ""} />
+          Actualizar
+        </button>
       </div>
 
       {error && (

@@ -6,6 +6,7 @@ import MetricsBarChart from "@/components/MetricsBarChart";
 import { DollarSign, Package, Eye, ShoppingCart, Activity, RefreshCw } from "lucide-react";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
 import type { Client } from "@/lib/clients";
+import { useDateRange } from "@/lib/DateContext";
 
 interface DashboardData {
   stats: { totalSales: number; totalUnits: number; totalPageViews: number; avgBuyBox: number };
@@ -16,6 +17,7 @@ interface DashboardData {
 }
 
 export default function AmazonDashboard({ client }: { client: Client }) {
+  const { range } = useDateRange();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export default function AmazonDashboard({ client }: { client: Client }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/dashboard");
+      const res = await fetch(`/api/dashboard?from=${range.from}&to=${range.to}`);
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.error || "Error al cargar datos");
@@ -39,7 +41,7 @@ export default function AmazonDashboard({ client }: { client: Client }) {
     }
   }
 
-  useEffect(() => { fetchDashboard(); }, []);
+  useEffect(() => { fetchDashboard(); }, [range]);
 
   return (
     <div className="space-y-6">
@@ -48,7 +50,7 @@ export default function AmazonDashboard({ client }: { client: Client }) {
         <div>
           <h2 className="text-white font-semibold text-sm">{client.label} — Amazon</h2>
           <p className="text-[#8b949e] text-xs mt-0.5">
-            Marketplaces: {client.amazonRegions?.join(" · ") ?? "—"}
+            {range.label} · {client.amazonRegions?.join(" · ") ?? "—"}
           </p>
         </div>
         <div className="flex items-center gap-3">

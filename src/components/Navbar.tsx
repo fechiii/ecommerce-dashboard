@@ -1,5 +1,6 @@
 "use client";
 import { Bell, RefreshCw, Search } from "lucide-react";
+import DateRangePicker from "@/components/DateRangePicker";
 
 export default function Navbar({ title = "Dashboard" }: { title?: string }) {
   return (
@@ -16,6 +17,7 @@ export default function Navbar({ title = "Dashboard" }: { title?: string }) {
         </div>
       </div>
       <div className="flex items-center gap-3">
+        <DateRangePicker />
         <button className="flex items-center gap-2 bg-[#161b22] border border-[#30363d] text-[#8b949e] text-xs px-3 py-1.5 rounded-lg hover:text-white hover:border-[#58a6ff] transition-all">
           <RefreshCw size={12} />
           Sincronizar

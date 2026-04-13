@@ -7,6 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { DollarSign, Package, ShoppingCart, MessageCircle, RefreshCw, AlertCircle, TrendingUp } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { useClient } from "@/lib/ClientContext";
+import { useDateRange } from "@/lib/DateContext";
 
 interface AccountMetrics {
   accountId: string;
@@ -61,21 +62,18 @@ function dateRange(days: number) {
 
 export default function MeliPage() {
   const { client } = useClient();
+  const { range } = useDateRange();
   const [data, setData] = useState<MeliData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [days, setDays] = useState(30);
 
-  // Si hay un cliente seleccionado con cuenta Meli, filtrar; sino "all"
   const activeAccount = client.meliAccount ?? "all";
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const { from, to } = dateRange(days);
-      const accountParam = activeAccount;
-      const res = await fetch(`/api/meli?account=${accountParam}&from=${from}&to=${to}`);
+      const res = await fetch(`/api/meli?account=${activeAccount}&from=${range.from}&to=${range.to}`);
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.error || "Error al cargar datos de Meli");
@@ -92,7 +90,7 @@ export default function MeliPage() {
     } finally {
       setLoading(false);
     }
-  }, [days, activeAccount]);
+  }, [range, activeAccount]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
