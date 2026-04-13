@@ -1,16 +1,17 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ShoppingBag, TrendingUp, Database, Settings, RefreshCw } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, TrendingUp, Database, Settings, RefreshCw, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/sales", label: "Ventas", icon: TrendingUp },
-  { href: "/products", label: "Productos", icon: ShoppingBag },
-  { href: "/queries", label: "Queries Log", icon: Database },
-  { href: "/sync", label: "Sincronizar", icon: RefreshCw },
-  { href: "/settings", label: "Configuración", icon: Settings },
+  { href: "/",         label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/sales",    label: "Ventas Amazon",  icon: TrendingUp },
+  { href: "/meli",     label: "Mercado Libre",  icon: Store },
+  { href: "/products", label: "Productos",      icon: ShoppingBag },
+  { href: "/queries",  label: "Queries Log",    icon: Database },
+  { href: "/sync",     label: "Sincronizar",    icon: RefreshCw },
+  { href: "/settings", label: "Configuración",  icon: Settings },
 ];
 
 export default function Sidebar() {
